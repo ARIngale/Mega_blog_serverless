@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
+import aws from "aws-sdk";
 
 const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
 const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
@@ -31,6 +32,25 @@ mongoose.connect(process.env.DB_LOCATION, {
     autoIndex: true,
 });
 
+// setting up s3 bucket
+const s3 = new aws.S3({
+    region: 'ap-southeast-2',
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey:process.env.AWS_SECREAT_ACCESS_KEY
+})
+
+const generateUploadURL = async () => {
+    const date=new Date();
+    const imagename = `${nanoid()}-${date.getTime()}.jpeg`
+
+   return await s3.getSignedUrlPromise('putObject', {
+        Bucket:'mega-blog-web',
+        Key: imagename,
+        Expires:1000,
+        ContentType:"image/jpeg"
+    })
+}
+
 const generateUsername = async (email) => {
     let username = email.split('@')[0];
     const isUsernameNotUnique = await User.exists({ 'personal_info.username': username });
@@ -51,6 +71,16 @@ const formatDatatoSend = (user) => {
         fullname: user.personal_info.fullname,
     };
 };
+
+//upload image url route
+
+server.get('/get-upload-url', (req,res) => {
+    generateUploadURL().then(url => res.status(200).json({uploadURL:url}))
+    .catch(err => {
+        console.log(err.message)
+        return res.status(500).json({error:err.message})
+    })
+})
 
 // Signup Route
 server.post('/signup', (req, res) => {
