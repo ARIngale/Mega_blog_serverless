@@ -3,3 +3,5 @@
 
 # Optionally ignore other files/folders
 .env
+
+server/requests.rest

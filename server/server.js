@@ -9,6 +9,7 @@ import cors from 'cors';
 import admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 import aws from "aws-sdk";
+import { Blog } from './Schema/Blog.js';
 
 const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
 const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
@@ -61,6 +62,23 @@ const generateUsername = async (email) => {
 
     return username;
 };
+
+const verifyJWT = (req,res,next) => {
+    const authHeader=req.headers['authorization'];
+    const token=authHeader && authHeader.split(" ")[1];
+
+    if(token === null){
+        return res.status(401).json({error:"No access token"})
+    }
+
+    jwt.verify(token,process.env.SECREAT_ACCESS_KEY,(err,user) =>{
+        if(err) {
+            return res.status(403).json({error:"Access token is invalid"})
+        }
+        req.user=user.id;
+        next();
+    })
+}
 
 const formatDatatoSend = (user) => {
     const access_token = jwt.sign({ id: user.id }, process.env.SECREAT_ACCESS_KEY);
@@ -163,6 +181,71 @@ server.post('/google-auth', async (req, res) => {
         })
         .catch(() => res.status(500).json({ error: 'Failed to authenticate with Google. Try another account.' }));
 });
+
+server.post('/create-blog',verifyJWT,(req,res) => {
+    let authorId=req.user;
+    let {title,des,banner,tags,content,draft}=req.body;
+
+    if(!title.length){
+        return res.status(403).json({error:"You must provide a title to publish the blog"})
+    }
+    if(!des.length || des.length > 200){
+        return res.status(403).json({error:"You must provide a blog description undere 200 characters"})
+    }
+    if(!banner.length){
+        return res.status(403).json({error:"You must provide a blog banner to publish the blog"})
+    }
+    if(!content.blocks.length){
+        return res.status(403).json({error:"There must be some blog content to publish it"})
+    }
+    if(!tags.length || tags.length > 10){
+        return res.status(403).json({error:"Provide tags in order to publish the blog, Maximum 10"})
+    }
+
+    tags=tags.map(tag => tag.toLowerCase());
+    let blog_id = title.replace(/[^a-zA-Z0-9]/g,'').replace(/\s+/g,"-").trim()+nanoid();
+
+    let blog = new Blog({
+        title, des, banner, tags, content, author: authorId, blog_id, draft: Boolean(draft),
+    });    
+    
+    blog.save()
+        .then(blog => {
+            let incrementVal = draft ? 0 : 1;
+    
+
+User.findOneAndUpdate(
+    { _id: authorId },
+    {
+        $inc: { "account_info.total_posts": incrementVal },
+        $push: { "blogs": blog._id },
+
+    },
+    { new: true, upsert: false }
+)
+    .then(user => {
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        return res.status(200).json({ id: blog.blog_id });
+    })
+    .catch(err => {
+        console.error("Error updating user:", err);
+        return res.status(500).json({
+            error: "Failed to update total posts numbers",
+            details: err.message,
+        });
+    });
+
+            
+        })
+        .catch(err => {
+            return res.status(500).json({ error: err.message });
+        });
+    
+
+    // return res.json({status:'done'})
+})
 
 // Start the Server
 server.listen(PORT, () => {
