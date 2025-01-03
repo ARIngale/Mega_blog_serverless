@@ -182,25 +182,79 @@ server.post('/google-auth', async (req, res) => {
         .catch(() => res.status(500).json({ error: 'Failed to authenticate with Google. Try another account.' }));
 });
 
+server.get('/latest-blog',(req,res) => {
+    let maxLimit=5;
+
+    Blog.find({draft:false})
+    .populate("author","personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .sort({"publishedAt":-1})
+    .select("blog_id title des banner activity tags publishedAt -_id")
+    .limit(maxLimit)
+    .then(blogs => {
+        return res.status(200).json({blogs})
+    })
+    .catch(err => {
+        return res.status(500).json({error:err.message})
+    })
+});
+server.get('/treanding-blog',(req,res) => {
+    let maxLimit=5;
+
+    Blog.find({draft:false})
+    .populate("author","personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .sort({"activity.total_reads":-1,"activity.total_likes":-1})
+    .select("blog_id title publishedAt -_id")
+    .limit(maxLimit)
+    .then(blogs => {
+        return res.status(200).json({blogs})
+    })
+    .catch(err => {
+        return res.status(500).json({error:err.message})
+    })
+});
+
+
+server.post('/search-blogs',(req,res) => {
+    let {tag}=req.body;
+    let findQuery={tags:tag,draft:false};
+    let maxLimit=5;
+    Blog.find(findQuery)
+    .populate("author","personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .sort({"publishedAt":-1})
+    .select("blog_id title des banner activity tags publishedAt -_id")
+    .limit(maxLimit)
+    .then(blogs => {
+        return res.status(200).json({blogs})
+    })
+    .catch(err => {
+        return res.status(500).json({error:err.message})
+    })
+})
+
 server.post('/create-blog',verifyJWT,(req,res) => {
     let authorId=req.user;
     let {title,des,banner,tags,content,draft}=req.body;
 
+
     if(!title.length){
-        return res.status(403).json({error:"You must provide a title to publish the blog"})
+        return res.status(403).json({error:"You must provide a title"})
     }
-    if(!des.length || des.length > 200){
-        return res.status(403).json({error:"You must provide a blog description undere 200 characters"})
+
+    if(!draft){
+        if(!des.length || des.length > 200){
+            return res.status(403).json({error:"You must provide a blog description undere 200 characters"})
+        }
+        if(!banner.length){
+            return res.status(403).json({error:"You must provide a blog banner to publish the blog"})
+        }
+        if(!content.blocks.length){
+            return res.status(403).json({error:"There must be some blog content to publish it"})
+        }
+        if(!tags.length || tags.length > 10){
+            return res.status(403).json({error:"Provide tags in order to publish the blog, Maximum 10"})
+        }
     }
-    if(!banner.length){
-        return res.status(403).json({error:"You must provide a blog banner to publish the blog"})
-    }
-    if(!content.blocks.length){
-        return res.status(403).json({error:"There must be some blog content to publish it"})
-    }
-    if(!tags.length || tags.length > 10){
-        return res.status(403).json({error:"Provide tags in order to publish the blog, Maximum 10"})
-    }
+  
 
     tags=tags.map(tag => tag.toLowerCase());
     let blog_id = title.replace(/[^a-zA-Z0-9]/g,'').replace(/\s+/g,"-").trim()+nanoid();
