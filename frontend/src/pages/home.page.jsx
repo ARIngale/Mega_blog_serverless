@@ -7,6 +7,8 @@ import BlogPostCard from "../components/blog-post.component";
 import MinimalBlogPost from "../components/nobanner-blog-post.component";
 import { activeTabRef } from "../components/inpage-navigation.component";
 import NoDataMessage from "../components/nodata.component";
+import { filterPaginationData } from "../common/filter-pagination-data";
+import LoadMoreDataBtn from "../components/load-more.component";
 
 const HomePage = () => {
     const [blogs, setBlogs] = useState(null);
@@ -15,10 +17,18 @@ const HomePage = () => {
 
     let categories =["programming","hollywood","film making","social media","cooking","tech","finance","travel"];
 
-    const fetchLatestBlogs = () => {
-        axios.get(`${import.meta.env.VITE_SERVER_DOMAIN}/latest-blog`)
-            .then(({ data }) => {
-                setBlogs(data.blogs);
+    const fetchLatestBlogs = ({page=1}) => {
+        axios.post(import.meta.env.VITE_SERVER_DOMAIN+"/latest-blog",{page})
+            .then( async ({ data }) => {
+                
+                let formatedData= await filterPaginationData({
+                    state:blogs,
+                    data:data.blogs,
+                    page,
+                    counteRoute:"/all-latest-blogs-count"
+                })
+                // console.log(formatedData);
+                setBlogs(formatedData);
             })
             .catch(err => {
                 console.error("Error fetching latest blogs:", err);
@@ -35,11 +45,20 @@ const HomePage = () => {
             });
     }
 
-    const feactBlogsByCategory=()=>{
-        axios.post(`${import.meta.env.VITE_SERVER_DOMAIN}/search-blogs`,{tag:pageState})
-            .then(({ data }) => {
-                setBlogs(data.blogs);
+    const feactBlogsByCategory=({page=1})=>{
+        axios.post(`${import.meta.env.VITE_SERVER_DOMAIN}/search-blogs`,{tag:pageState,page})
+        .then( async ({ data }) => {
+                
+            let formatedData= await filterPaginationData({
+                state:blogs,
+                data:data.blogs,
+                page,
+                counteRoute:"/search-blogs-count",
+                data_to_send:{tag:pageState}
             })
+            // console.log(formatedData);
+            setBlogs(formatedData);
+        })
             .catch(err => {
                 console.error("Error fetching latest blogs:", err);
             });
@@ -61,9 +80,9 @@ const HomePage = () => {
     useEffect(() => {
         activeTabRef.current.click();
         if(pageState === "home"){
-            fetchLatestBlogs();
+            fetchLatestBlogs({page:1});
         }else{
-            feactBlogsByCategory();
+            feactBlogsByCategory({page:1});
         }
         if(!treandingBlogs){
             fetchTreadingBlogs();
@@ -76,11 +95,12 @@ const HomePage = () => {
                 {/* latest blogs */}
                 <div style={{ marginBottom: '32px' }}>
                     <InPageNavigation routes={[pageState, "trending blogs"]} defaultHidden={["trending blogs"]}>
+                        <>
                             {blogs === null ? (
                                 <Loader />
                             ) : (
-                                blogs.length ?
-                                blogs.map((blog, i) => (
+                                blogs.results.length ?
+                                blogs.results.map((blog, i) => (
                                     <AnimationWrapper key={i} transition={{ duration: 1, delay: i * 0.1 }}>
                                         <BlogPostCard content={blog} author={blog.author.personal_info} />
                                     </AnimationWrapper>
@@ -88,6 +108,8 @@ const HomePage = () => {
                                 :
                                 <NoDataMessage message="No Blog Published"/>
                             )}
+                            <LoadMoreDataBtn state={blogs} fetchDataFun={(pageState === "home" ? fetchLatestBlogs:feactBlogsByCategory)}/>
+                        </>
                             {treandingBlogs === null ? (
                                 <Loader />
                             ) : (
@@ -100,6 +122,7 @@ const HomePage = () => {
                                 :
                                 <NoDataMessage message="No Trending Blogs"/>
                             )}
+                           
                     </InPageNavigation>
                 </div>
                 {/* filters and trending blogs */}
