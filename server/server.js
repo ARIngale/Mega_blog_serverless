@@ -230,9 +230,22 @@ server.get('/treanding-blog',(req,res) => {
 
 
 server.post('/search-blogs',(req,res) => {
-    let {tag,page}=req.body;
-    let findQuery={tags:tag,draft:false};
-    let maxLimit=5;
+
+    let {tag,query,author,page,limit,eliminate_blog}=req.body;
+
+    let findQuery;
+
+    if(tag){
+        findQuery={tags:tag,draft:false,blog_id:{$ne:eliminate_blog}};
+    }
+    else if(query){
+        findQuery={draft:false,title:new RegExp(query,'i')};
+    }else if(author){
+        findQuery={author,draft:false}
+    }
+
+    let maxLimit=limit?limit:5;
+
     Blog.find(findQuery)
     .populate("author","personal_info.profile_img personal_info.username personal_info.fullname -_id")
     .sort({"publishedAt":-1})
@@ -245,18 +258,27 @@ server.post('/search-blogs',(req,res) => {
     .catch(err => {
         return res.status(500).json({error:err.message})
     })
+
 })
 
 server.post('/search-blogs-count', (req, res) => {
 
-    let { tags } = req.body;
-    // console.log("Extracted tags:", tags);
+    let {tag,author,query}=req.body;
 
-    // if (!tags || !Array.isArray(tags)) {
-    //     return res.status(400).json({ error: "Invalid or missing 'tags' field. It should be an array." });
-    // }
+    let findQuery;
 
-    let findQuery = { tags: { $in: tags }, draft: false };
+    if(tag){
+        findQuery={ tags: { $in: tag }, draft: false };
+    }    
+    else if(query){
+        findQuery = { title: new RegExp(query, 'i'), draft: false };
+    }
+    else if(author){
+        findQuery={author,draft:false}
+    }
+
+
+    // let findQuery = { tags: { $in: tags }, draft: false };
     // console.log("Find query:", findQuery);
 
     Blog.countDocuments(findQuery)
@@ -270,11 +292,37 @@ server.post('/search-blogs-count', (req, res) => {
         });
 });
 
+server.post("/search-users", (req,res) => {
+    let {query}=req.body;
+
+    User.find({"personal_info.username":new RegExp(query, 'i')})
+    .limit(50)
+    .select("personal_info.fullname personal_info.username personal_info.profile_img")
+    .then(users => {
+        return res.status(200).json({users})
+    })
+    .catch(err => {
+        return res.status(500).json({error:err.message})
+    })
+})
+
+server.post("/get-profile", (req,res) => {
+    let {username}=req.body;
+
+    User.find({"personal_info.username": username})
+    .select("-personal_info.password -google_auth -updatedAt -blogs")
+    .then(users => {
+        return res.status(200).json({users})
+    })
+    .catch(err => {
+        return res.status(500).json({error:err.message})
+    })
+})
 
 
 server.post('/create-blog',verifyJWT,(req,res) => {
     let authorId=req.user;
-    let {title,des,banner,tags,content,draft}=req.body;
+    let {title,des,banner,tags,content,draft,id}=req.body;
 
 
     if(!title.length){
@@ -298,49 +346,105 @@ server.post('/create-blog',verifyJWT,(req,res) => {
   
 
     tags=tags.map(tag => tag.toLowerCase());
-    let blog_id = title.replace(/[^a-zA-Z0-9]/g,'').replace(/\s+/g,"-").trim()+nanoid();
+    let blog_id = id ||  title.replace(/[^a-zA-Z0-9]/g,'').replace(/\s+/g,"-").trim()+nanoid();
 
-    let blog = new Blog({
-        title, des, banner, tags, content, author: authorId, blog_id, draft: Boolean(draft),
-    });    
-    
-    blog.save()
-        .then(blog => {
-            let incrementVal = draft ? 0 : 1;
-    
-
-User.findOneAndUpdate(
-    { _id: authorId },
-    {
-        $inc: { "account_info.total_posts": incrementVal },
-        $push: { "blogs": blog._id },
-
-    },
-    { new: true, upsert: false }
-)
-    .then(user => {
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-        return res.status(200).json({ id: blog.blog_id });
-    })
-    .catch(err => {
-        console.error("Error updating user:", err);
-        return res.status(500).json({
-            error: "Failed to update total posts numbers",
-            details: err.message,
-        });
-    });
-
-            
+    if(id){
+        Blog.findOneAndUpdate({blog_id},{title,des,banner,content,tags,draft: draft ? draft:false})
+        .then(() => {
+            return res.status(200).json({id:blog_id});
         })
         .catch(err => {
             return res.status(500).json({ error: err.message });
         });
+    }else{
+        let blog = new Blog({
+            title, des, banner, tags, content, author: authorId, blog_id, draft: Boolean(draft),
+        });    
+    
+        
+        
+        blog.save()
+            .then(blog => {
+                let incrementVal = draft ? 0 : 1;
+        
+    
+    User.findOneAndUpdate(
+        { _id: authorId },
+        {
+            $inc: { "account_info.total_posts": incrementVal },
+            $push: { "blogs": blog._id },
+    
+        },
+        { new: true, upsert: false }
+    )
+        .then(user => {
+            if (!user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+            return res.status(200).json({ id: blog.blog_id });
+        })
+        .catch(err => {
+            console.error("Error updating user:", err);
+            return res.status(500).json({
+                error: "Failed to update total posts numbers",
+                details: err.message,
+            });
+        });
+    
+                
+            })
+            .catch(err => {
+                return res.status(500).json({ error: err.message });
+            });
+    }
+    
     
 
     // return res.json({status:'done'})
 })
+
+// get blogs
+
+server.post('/get-blog', async (req, res) => {
+    try {
+        const { blog_id ,draft,mode} = req.body;
+        const incrementVal =  mode !== 'edit' ? 1 : 0;
+
+        // Update the blog's activity
+        const blog = await Blog.findOneAndUpdate(
+            { blog_id },
+            { $inc: { "activity.total_reads": incrementVal } },
+            { new: true }
+        )
+            .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img")
+            .select("title des content banner activity publishedAt blog_id tags");
+
+        if (!blog) {
+            return res.status(404).json({ error: "Blog not found" });
+        }
+
+        // Update the user's total_reads
+        if (blog.author && blog.author.personal_info && blog.author.personal_info.username) {
+            await User.findOneAndUpdate(
+                { "personal_info.username": blog.author.personal_info.username },
+                { $inc: { "account_info.total_reads": incrementVal } }
+            );
+        }
+        if(blog.draft && !draft){
+            return res.status(500).json({ error: 'you can not access the draft blogs' });
+        }
+
+        return res.status(200).json({ blog });
+
+        
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }   
+   
+
+    
+});
+
 
 // Start the Server
 server.listen(PORT, () => {
