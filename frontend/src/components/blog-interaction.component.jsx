@@ -1,22 +1,66 @@
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { BlogContext } from "../pages/blog.page";
 import { Link } from "react-router-dom";
 import { UserContext } from "../App";
+import { Toaster,toast } from "react-hot-toast";
+import axios from "axios";
 
 const BlogInteraction =()=>{
 
-    let {title,blog:{blog_id,activity:{total_likes,total_comments},author:{personal_info:{username:author_username}}},setBlog}=useContext(BlogContext);
+    let {blog,blog:{_id,title,blog_id,activity:{total_likes,total_comments},author:{personal_info:{username:author_username}}},setBlog,isLikedByUser,setLikedByUser}=useContext(BlogContext);
 
-    let {userAuth:{username}}=useContext(UserContext);
+    let {userAuth:{username,access_token}}=useContext(UserContext);
+
+    const handleLike = () =>{
+        if(access_token){
+            setLikedByUser(pre => !pre);
+            const updatedLikes = isLikedByUser ? total_likes - 1 : total_likes + 1;
+            setBlog({...blog, activity:{ ...blog.activity,total_likes: updatedLikes }})
+
+            axios.post(import.meta.env.VITE_SERVER_DOMAIN+"/liked-blog",{_id,isLikedByUser},{
+                headers:{
+                    'Authorization':`Bearer ${access_token}`
+                }
+            })
+            .then(({data})=>{
+                console.log(data);
+            })
+            .catch(err => {
+                console.log(err);
+            })
+        }else{
+          toast.error("please login to like this blog")  
+        }
+    }
+
+    useEffect(() => {
+        if(access_token){
+            axios.post(import.meta.env.VITE_SERVER_DOMAIN+"/isliked-by-user",{_id},{
+                headers:{
+                    'Authorization':`Bearer ${access_token}`
+                }
+            })
+            .then(({data:{result}}) => {
+                setLikedByUser(Boolean(result))
+            })
+            .catch(err => {
+                console.log(err);
+            })
+        }
+    },[])
     return(
         <>
+        <Toaster/>
         <hr className="border-grey my-2" /> 
 
         <div className="flex gap-6 justify-between">
             <div className="flex gap-3 items-center">
-                <button className="w-10 h-10 rounded-full flex items-center justify-center bg-grey/80">
-                    <i className="fi fi-rr-heart"></i>
-                </button>
+            <button
+                onClick={handleLike}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${isLikedByUser ? "bg-red/20 text-red" : "bg-grey/80"}`}>
+                <i className={`${isLikedByUser ? "fi fi-sr-heart":"fi fi-rr-heart"}`}></i>
+            </button>
+
                 <p className="text-xl text-dark-grey">{total_likes}</p>
                <button className="w-10 h-10 rounded-full flex items-center justify-center bg-grey/80">
                     <i className="fi fi-rr-comment"></i>
@@ -36,7 +80,7 @@ const BlogInteraction =()=>{
         </div>
 
         <hr className="border-grey my-2" /> 
-
+      
         </>
     )
 }
