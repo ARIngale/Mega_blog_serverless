@@ -8,12 +8,13 @@ import { getDay } from "../common/date";
 import BlogInteraction from "../components/blog-interaction.component";
 import BlogPostCard from "../components/blog-post.component";
 import BlogContent from "../components/blog-content.component";
+import CommentsContainer, { fetchComment } from "../components/comments.component";
 
 export const blogStructure={
     title:'',
     des:'',
     content:[],
-
+    comments:{results:[]},
     author:{personal_info:{ }},
     banner:'',
     publishedAt:''
@@ -28,24 +29,35 @@ const BlogPage = () => {
     const [loading,setLoading]=useState(true);
     const [simiarlBlogs,setSimiarlBlogs]=useState(null);
     const [isLikedByUser,setLikedByUser]=useState(false);
+    const [commentsWrapper,setCommentsWrapper]=useState(false);
+    const [totalParentCommentsLoaded,setTotalParentCommentsLoaded]=useState(0);
 
-    let {title,des,content,author:{personal_info:{fullname,username:author_username,profile_img}},banner,publishedAt}=blog;
+    let {title,des,content,author:{personal_info:{fullname,username:author_username,profile_img}},banner,publishedAt,comments}=blog;
 
     const featchBlog=() => {
         axios.post(import.meta.env.VITE_SERVER_DOMAIN+"/get-blog",{blog_id})
-        .then(({data:{blog}}) =>{
+        
+        .then( async ({data:{blog}}) =>{
+
+             console.log(blog)
+
+            blog.comments=await fetchComment({blog_id:blog._id,setParentCommentCountFun:setTotalParentCommentsLoaded});
+
             axios.post(import.meta.env.VITE_SERVER_DOMAIN+"/search-blogs",{tag:blog.tags[0],limit:6, eliminate_blog:blog_id})
             .then(({data}) =>{
+
                 
                 setSimiarlBlogs(data.blogs);
                 console.log(data.blogs);
             })
             setBlog(blog)
+            console.log(blog)
             setLoading(false);
         })
         .catch(err =>{
             console.log(err);
             setLoading(false);
+            
         })
     }
 
@@ -58,13 +70,17 @@ const BlogPage = () => {
         setBlog(blogStructure);
         setSimiarlBlogs(null);
         setLoading(true)
+        setLikedByUser(false);
+        setCommentsWrapper(false);
+        setTotalParentCommentsLoaded(0);
     }
     
     return (
         <AnimationWrapper>
             {
                 loading ? <Loader/>:
-                <BlogContext.Provider value={{blog,setBlog,isLikedByUser,setLikedByUser}}> 
+                <BlogContext.Provider value={{blog,setBlog,isLikedByUser,setLikedByUser,commentsWrapper,setCommentsWrapper,totalParentCommentsLoaded,setTotalParentCommentsLoaded}}> 
+                <CommentsContainer/>
                 <div className="max-w-[900px] center py-10 max-lg:px-[5vw]">
                     <img src={banner} className="aspect-video" />
                     <div className="mt-12">
