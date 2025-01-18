@@ -11,12 +11,10 @@ export const fetchComment = async ({ skip = 0, blog_id, setParentCommentCountFun
 
     await axios.post(import.meta.env.VITE_SERVER_DOMAIN + "/get-blog-comments", { blog_id, skip })
         .then(({ data }) => {
-            // Add `childrenLevel` property
             data.forEach(comment => {
                 comment.childrenLevel = 0;
             });
 
-            // Update parent comment count
             setParentCommentCountFun(prev => prev + data.length);
 
             // Return updated comments
@@ -56,7 +54,7 @@ const CommentsContainer=()=>{
         {
             commentsArr && commentsArr.length ? 
             commentsArr.map((comment,i) => {
-                return <AnimationWrapper>
+                return <AnimationWrapper key={i}>
                     <CommentCard index={i} leftVal={comment.childrenLevel * 4 }commentData={comment}/>
                 </AnimationWrapper>;
             })

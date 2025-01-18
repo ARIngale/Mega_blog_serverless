@@ -39,7 +39,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="navbar flex items-center py-4 px-6 bg-white shadow-md">
+      <nav className="navbar flex items-center py-4 px-6 bg-white shadow-md z-50">
         <Link to="/" className="flex-none w-14">
           <img src={logo} alt="logo" className="w-full" />
         </Link>

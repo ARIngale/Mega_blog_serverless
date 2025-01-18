@@ -52,7 +52,7 @@ const ProfilePage = () => {
                 counteRoute:"/search-blogs-count",
                 data_to_send:{author:user_id}
             })
-            console.log("formatedData", formatedData);
+            // console.log("formatedData", formatedData);
             setBlogs(formatedData);
         })
     }

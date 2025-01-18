@@ -39,7 +39,7 @@ const BlogPage = () => {
         
         .then( async ({data:{blog}}) =>{
 
-             console.log(blog)
+            //  console.log(blog)
 
             blog.comments=await fetchComment({blog_id:blog._id,setParentCommentCountFun:setTotalParentCommentsLoaded});
 
@@ -48,10 +48,12 @@ const BlogPage = () => {
 
                 
                 setSimiarlBlogs(data.blogs);
-                console.log(data.blogs);
+                // console.log(data.blogs);
             })
             setBlog(blog)
-            console.log(blog)
+
+            // console.log(blog)
+
             setLoading(false);
         })
         .catch(err =>{
