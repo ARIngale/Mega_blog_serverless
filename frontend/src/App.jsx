@@ -11,6 +11,7 @@ import ProfilePage from "./pages/profile.page"
 import BlogPage from "./pages/blog.page"
 import SideNav from "./components/sidenavbar.component"
 import ChangePassword from "./pages/change-password.page"
+import EditorProfile from "./pages/edit-profile.page"
 
 const UserContext = createContext({})
 
@@ -33,7 +34,7 @@ const App = () => {
                     <Route path="/" element={<HomePage/>}></Route>
                     <Route path="settings" element={<SideNav/>}>
 
-                        <Route path="edit-profile" element={<h1>this is edit profile</h1>}/>
+                        <Route path="edit-profile" element={<EditorProfile/>}/>
                         <Route path="change-password" element={<ChangePassword/>}/>
 
                     </Route>

@@ -321,6 +321,68 @@ server.post("/get-profile", (req,res) => {
     })
 })
 
+server.post("/update-profile-img", verifyJWT, (req, res) => {
+
+    let {url}=req.body;
+    User.findOneAndUpdate({_id:req.user},{"personal_info.profile_img":url})
+    .then(()=>{
+        return res.status(200).json({profile_img:url})
+    })
+    .catch(err=>{
+        return res.status(500).json({error:err.message})
+    })
+})
+
+server.post("/update-profile", verifyJWT, (req, res) => {
+
+    let {username,bio,social_links}=req.body;
+    let biolimit=150;
+
+    if(username.length < 3){
+        return res.status(403).json({error:"Username should be at least 3 letters long"});
+    }
+
+    if(bio.length > biolimit){
+        return res.status(403).json({error:`Bio should not be more than ${biolimit} characters`});
+    }
+
+    let socailLinkArr=Object.keys(social_links);
+
+    try{
+        for(let i=0;i<socailLinkArr.length;i++){
+            if(social_links[socailLinkArr[i]].length){
+                let hostname=new URL(social_links[socailLinkArr[i]]).hostname;
+
+                if(!hostname.includes(`${socailLinkArr[i]}.com`) && socailLinkArr[i] !== 'website'){
+                    return res.status(403).json({error:`${socailLinkArr[i]} link is invalid. You must enter a full links`});
+                }
+                
+            }
+        }
+    }
+    catch(err) {
+        return res.status(500).json({error:"You must provide full socail links with http(s) included"})
+    }
+
+    let UpdateObj={
+        "personal_info.username":username,
+        "personal_info.bio":bio,
+        social_links
+    }
+
+    User.findOneAndUpdate({_id:req.user},UpdateObj,{runValidators:true})
+    .then(()=>{
+        return res.status(200).json({username})
+    })
+    .catch(err=>{
+        if(err.code === 11000){
+            return res.status(409).json({error:"Username is alredy taken"})
+        }
+        return res.status(500).json({error:err.message})
+
+    })
+})
+
 
 server.post('/create-blog',verifyJWT,(req,res) => {
     let authorId=req.user;
