@@ -12,6 +12,7 @@ import aws from "aws-sdk";
 import { Blog } from './Schema/Blog.js';
 import { Notification } from './Schema/Notification.js';
 import { Comment } from './Schema/Comment.js';
+import { populate } from 'dotenv';
 
 const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
 const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
@@ -467,12 +468,10 @@ server.post('/create-blog',verifyJWT,(req,res) => {
     // return res.json({status:'done'})
 })
 
-// get blogs
-
 server.post('/get-blog', async (req, res) => {
     try {
-        const { blog_id ,draft,mode} = req.body;
-        const incrementVal =  mode !== 'edit' ? 1 : 0;
+        const { blog_id, draft, mode } = req.body;
+        const incrementVal = mode !== 'edit' ? 1 : 0;
 
         // Update the blog's activity
         const blog = await Blog.findOneAndUpdate(
@@ -484,30 +483,31 @@ server.post('/get-blog', async (req, res) => {
             .select("title des content banner activity publishedAt blog_id tags");
 
         if (!blog) {
+            // If blog is not found, return 404 and stop further execution
             return res.status(404).json({ error: "Blog not found" });
         }
 
-        // Update the user's total_reads
-        if (blog.author && blog.author.personal_info && blog.author.personal_info.username) {
+        // Check if the blog is a draft and access is not allowed
+        if (blog.draft && !draft) {
+            return res.status(403).json({ error: "You cannot access draft blogs" });
+        }
+
+        // Update the author's total reads
+        if (blog.author?.personal_info?.username) {
             await User.findOneAndUpdate(
                 { "personal_info.username": blog.author.personal_info.username },
                 { $inc: { "account_info.total_reads": incrementVal } }
             );
         }
-        if(blog.draft && !draft){
-            return res.status(500).json({ error: 'you can not access the draft blogs' });
-        }
 
+        // Send back the blog data
         return res.status(200).json({ blog });
-
-        
     } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }   
-   
-
-    
+        console.error("Error in /get-blog route:", err); // Log error for debugging
+        return res.status(500).json({ error: "An internal server error occurred." });
+    }
 });
+
 
 server.post("/liked-blog",verifyJWT,(req,res) => {
     let user_id=req.user;
@@ -546,29 +546,48 @@ server.post("/isliked-by-user",verifyJWT,(req,res) => {
 
 server.post("/add-comment",verifyJWT,(req,res) => {
     let user_id=req.user;
-    let {_id,comment,blog_author}=req.body;
+    let {_id,comment,blog_author,replying_to,notification_id}=req.body;
 
     if(!comment.length){
         return res.status(403).json({error:'Write something to leave the comment'})
     }
 
-    let commentObj=new Comment({
+    let commentObj={
         blog_id:_id,blog_author,comment,commented_by:user_id,
-    })
+    }
 
-    commentObj.save().then(commentFile => {
+    if(replying_to){
+        commentObj.parent=replying_to;
+        commentObj.isReply=true;
+        
+    }
+
+    new Comment (commentObj).save().then ( async commentFile => {
         
         let {comment,commentedAt,children}=commentFile;
 
-        Blog.findOneAndUpdate({_id},{$push:{"comments":commentFile._id},$inc:{"activity.total_comments":1},"activity.total_parent_comments":1})
+        Blog.findOneAndUpdate({_id},{$push:{"comments":commentFile._id},$inc:{"activity.total_comments":1},"activity.total_parent_comments":replying_to ? 0:1})
         .then(blog => {console.log('New Comment created')});
         
         let notificationObj={
-            type:"comment",
+            type:replying_to? "reply":"comment",
             blog:_id,
             notification_for:blog_author,
             user:user_id,
             comment:commentFile._id
+        }
+
+        if(replying_to){
+            notificationObj.replied_on_comment=replying_to;
+
+            await Comment.findOneAndUpdate({_id:replying_to},{$push:{children:commentFile._id}})
+            .then(replyingToCommentDoc => {notificationObj.notification_for= replyingToCommentDoc.commented_by}) 
+
+            if(notification_id){
+                Notification.findOneAndUpdate({_id:notification_id},{reply: commentFile._id})
+                .then(notification =>console.log('notification updated') ) 
+            }
+
         }
 
         new Notification(notificationObj).save().then(notification => console.log('new notification created'));
@@ -640,6 +659,202 @@ server.post("/change-password",verifyJWT,(req,res) => {
         return res.status(500).json({error:'User not found'})
     })
 })
+
+
+server.get("/new-notification", verifyJWT, (req, res) => {
+    
+        const user_id = req.user;
+
+       Notification.exists({
+            notification_for: user_id,
+            seen: false,
+            user: { $ne: user_id }
+        })
+        .then(result => {
+            console.log("result it is",result);
+            res.status(200).json({ new_notification_available:!!result });
+            
+        })
+    .catch (err=> {
+        res.status(500).json({ error: err.message });
+    })
+});
+
+server.post('/notifications',verifyJWT,(req,res) => {
+    let user_id=req.user;
+    let {page,filter,deletedDocCount}=req.body;
+
+    let maxLimit=10;
+
+    let findQuery={notification_for:user_id,user:{$ne:user_id}};
+    let skipsDocs=(page-1)*maxLimit;
+
+    if(filter !== 'all'){
+        findQuery.type=filter;
+    } 
+    if(deletedDocCount){
+        skipsDocs-=deletedDocCount;
+    }
+
+    Notification.find(findQuery)
+    .skip(skipsDocs)
+    .limit(maxLimit)
+    .populate("blog","title blog_id")
+    .populate("user","personal_info.fullname personal_info.username personal_info.profile_img")
+    .populate("comment","comment")
+    .populate("replied_on_comment","comment")
+    .populate("reply","comment")
+    .sort({createdAt:-1})
+    .select("createdAt type seen reply")
+    .then(notifications => {
+
+        Notification.updateMany(findQuery,{seen:true})
+        .skip(skipsDocs)
+        .limit(maxLimit)
+        .then(notifications => console.log('notification seen'))
+
+
+        return res.status(200).json({notifications});
+    })
+    .catch (err=> {
+        res.status(500).json({ error: err.message });
+    })
+
+})
+
+server.post("/all-notifications-count",verifyJWT,(req,res) => {
+    let user_id=req.user;
+    let {filter}=req.body;
+    let findQuery={notification_for:user_id,user:{$ne:user_id}};
+
+    if(filter !== 'all'){
+        findQuery.type=filter;
+    } 
+
+    Notification.countDocuments(findQuery)
+    .then(count => {
+        return res.status(200).json({totalDocs:count});
+    })
+    .catch (err=> {
+        res.status(500).json({ error: err.message });
+    })
+})
+
+
+server.post("/get-replies",(req,res) => {
+    let {_id,skip}=req.body;
+    let maxlimit=5;
+
+    Comment.findOne({_id})
+    .populate({
+        path:"children",
+        option:{
+            limit:maxlimit,
+            skip:skip,
+            sort:{'commentedAt':-1}
+        },
+        populate:{
+            path:'commented_by',
+            select:"personal_info.profile_img personal_info.fullname personal_info.username"
+        },
+        
+    })
+    .select("children")
+    .then(doc => {
+        return res.status(200).json({replies:doc.children});
+    })
+    .catch (err=> {
+        res.status(500).json({ error: err.message });
+    })
+
+})
+
+const deleteComments = async (_id) => {
+    try {
+        // Find and delete the comment
+        const comment = await Comment.findOneAndDelete({ _id });
+        console.log("1st comment", comment);
+
+        if (!comment) {
+            throw new Error("Comment not found");
+        }
+
+        // If the comment has a parent, remove it from the parent's children array
+        if (comment.parent) {
+            await Comment.findOneAndUpdate(
+                { _id: comment.parent },
+                { $pull: { children: _id } }
+            );
+            console.log("Comment deleted from parent");
+        }
+
+        // Delete related notifications
+        await Notification.findOneAndDelete({ comment: _id });
+        console.log("Comment notification deleted");
+
+        await Notification.findOneAndUpdate(
+            { reply: _id },
+            { $unset: { reply: 1 } }
+        );
+        console.log("Reply notification unset");
+
+        // Remove the comment from the blog's comments and decrement total comments count
+        await Blog.findOneAndUpdate(
+            { _id: comment.blog_id },
+            {
+                $pull: { comments: _id },
+                $inc: { "activity.total_comments": -1 },
+            }
+        );
+
+        // Recursively delete child comments
+        if (comment.children.length) {
+            for (const childId of comment.children) {
+                await deleteComments(childId);
+            }
+            console.log("Deleted child comments:", comment.children);
+        }
+    } catch (err) {
+        console.error("Error in deleteComments function:", err.message);
+        throw err; // Propagate the error to the caller
+    }
+};
+
+
+server.post("/delete-comment", verifyJWT, async (req, res) => {
+    const user_id = req.user;
+    const { _id } = req.body;
+
+    try {
+        // Find the comment
+        const comment = await Comment.findOne({ _id });
+        if (!comment) {
+            return res.status(404).json({ error: "Comment not found" });
+        }
+
+        console.log("user_id", user_id);
+        console.log("comment.commented_by", comment.commented_by.toString());
+        console.log("comment.blog_author", comment.blog_author.toString());
+
+        // Check if the user is authorized to delete the comment
+        if (
+            user_id === comment.commented_by.toString() ||
+            user_id === comment.blog_author.toString()
+        ) {
+            // Call the deleteComments function
+            await deleteComments(_id);
+            return res.status(200).json({ status: "Comment deleted successfully" });
+        } else {
+            return res.status(403).json({ error: "You cannot delete this comment" });
+        }
+    } catch (err) {
+        console.error("Error in /delete-comment route:", err.message);
+        return res.status(500).json({ error: "An error occurred while deleting the comment" });
+    }
+});
+
+
+
 
 // Start the Server
 server.listen(PORT, () => {

@@ -5,6 +5,8 @@ import { UserContext } from "../App";
 const SideNav = () => {
     const { userAuth } = useContext(UserContext) || {};
     const access_token = userAuth?.access_token;
+    const new_notification_available=userAuth?.new_notification_available;
+
     const location = useLocation();
 
     const [pagestate, setPageState] = useState("");
@@ -82,12 +84,18 @@ const SideNav = () => {
                     </NavLink>
 
                     <NavLink
-                        to="/dashboard/notification"
+                        to="/dashboard/notifications"
                         onClick={changePageState}
                         className="sidebar-link"
                         data-page="notification"
                     >
-                        <i className="fi fi-rr-bell"></i>
+                       <div className="relative">
+                       <i className="fi fi-rr-bell"></i>
+                       {
+                    new_notification_available ? 
+                    <span className="bg-red w-3 h-3 rounded-full absolute z-10 top-0 right-0"></span>:""
+                  }
+                       </div>
                         Notification
                     </NavLink>
 

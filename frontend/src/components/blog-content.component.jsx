@@ -18,17 +18,18 @@ const Quote=({quote,caption})=>{
     )
 }
 
-const List=({style,items})=>{
-    return(
-        <ol className={`pl-3 ${style === "ordered" ? "list-decimal":"list-disc"}`}>
+const List = ({ style, items }) => {
+    return (
+        <ol className={`pl-3 ${style === "ordered" ? "list-decimal" : "list-disc"}`}>
             {
-                items.map((listItem,i) => {
-                    return <li key={i} className="my-4" dangerouslySetInnerHTML={{__html:data.text}}></li>
+                items.map((listItem, i) => {
+                    return <li key={i} className="my-4" dangerouslySetInnerHTML={{ __html: listItem }}></li>
                 })
             }
         </ol>
-    )
-}
+    );
+};
+
 
 const BlogContent=({block}) => {
     let {type,data}=block;
