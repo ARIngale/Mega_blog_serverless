@@ -49,12 +49,12 @@ const App = () => {
     // Update the favicon based on the theme
     const favicon = document.querySelector("link[rel='icon']");
     if (favicon) {
-      if (theme === "dark") {
-        favicon.href = "./src/imgs/logo-light.png";
-      } else {
-        favicon.href = "./src/imgs/logo-dark.png";
-      }
-    }
+        if (theme === "dark") {
+          favicon.href = "/logo-light.png"; // Reference the image in the public folder
+        } else {
+          favicon.href = "/logo-dark.png"; // Reference the image in the public folder
+        }
+    }  
   }, [theme]);
 
   return (
