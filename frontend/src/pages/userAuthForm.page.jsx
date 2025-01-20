@@ -28,17 +28,23 @@ const UserAuthForm = ({ type }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
+  
+    // Check if authForm is correctly attached
+    if (!authForm.current) {
+      toast.error("Form not found.");
+      return;
+    }
+  
     const serverRoute = type === "sign-in" ? "/signin" : "/signup";
-
+  
     const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
-
-    const form = new FormData(authForm.current);
+  
+    const form = new FormData(authForm.current); // Ensure the ref is attached and valid
     const formData = Object.fromEntries(form.entries());
-
+  
     const { fullname, email, password } = formData;
-
+  
     if (fullname && fullname.length === 0) {
       toast.error("Enter the name");
       return;
@@ -53,9 +59,11 @@ const UserAuthForm = ({ type }) => {
       );
       return;
     }
-
+  
     userAuthThroughServer(serverRoute, formData);
   };
+  
+
 
   const handleGoogleAuth = (e) => {
     e.preventDefault();

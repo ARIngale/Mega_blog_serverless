@@ -39,7 +39,7 @@ const InPageNavigation = ({routes,defaultHidden = [],defaultActiveIndex = 0,chil
                         )
                     })
                 }
-                <hr ref={aciveTabLineRef} className="absolute bottom-0 duration-300"/>
+                <hr ref={aciveTabLineRef} className="absolute bottom-0 duration-300 border-dark-grey"/>
 
             </div>
             {

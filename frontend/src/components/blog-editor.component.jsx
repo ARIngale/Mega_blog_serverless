@@ -1,7 +1,9 @@
 import { Link, useParams } from "react-router-dom";
-import logo from "../imgs/logo.png"
+import darkLogo from "../imgs/logo-dark.png";
+import lightLogo from "../imgs/logo-light.png";
 import AnimationWrapper from "../common/page-animation";
-import defaultBanner from "../imgs/blog banner.png"
+import lightBanner from "../imgs/blog banner light.png"
+import darkBanner from "../imgs/blog banner dark.png"
 import { useContext, useEffect } from "react";
 import { uploadImage } from "../common/aws";
 import {toast, Toaster} from "react-hot-toast"
@@ -9,15 +11,19 @@ import { EditorContext } from "../pages/editor.pages";
 import EditorJS from "@editorjs/editorjs"
 import axios from "axios";
 import {tools} from "../components/tools.component"
-import { UserContext } from "../App";
+import { ThemeContext, UserContext } from "../App";
 import { useNavigate } from "react-router-dom";
 
 
 
 const BlogEditor = () => {
     let {blog,blog:{title,banner,content, tags,des},setBlog,textEdiotr, setTextEdiotr,setEditoreState} = useContext(EditorContext);
+
     let {userAuth:{access_token}}=useContext(UserContext);
+
     const navigate = useNavigate();
+
+    let {theme}=useContext(ThemeContext);
 
     let {blog_id}=useParams();
 
@@ -78,7 +84,7 @@ const BlogEditor = () => {
 
     const handleError = (e) => {
         let img=e.target;
-        img.src=defaultBanner;
+        img.src=theme === "light" ? lightBanner : darkBanner;
     }
 
     const handlePulishEvent = (e) => {
@@ -149,7 +155,7 @@ const BlogEditor = () => {
     return (
        <>
             <nav className="navbar"> 
-                <Link to="/" className="flex-none w-10"><img src={logo}/></Link>
+                <Link to="/" className="flex-none w-10"><img src={theme === "light" ? darkLogo:lightLogo}/></Link>
                 <p className="max-md:hidden text-black line-clamp-1 w-full">{title.length ? title :"New Blog"}</p>
                 <div className="flex gap-4 ml-auto">
                     <button className="btn-dark py-2" onClick={handlePulishEvent}>Publish</button>
@@ -180,7 +186,7 @@ const BlogEditor = () => {
                     <textarea 
                         defaultValue={title}
                         placeholder="Blog Title"
-                        className="text-4xl font-medium w-full h-20 outline-none resize-none mt-10 leading-tight placeholder:opacity-40"
+                        className="text-4xl font-medium w-full h-20 outline-none resize-none mt-10 leading-tight placeholder:opacity-40 bg-white"
                         onKeyDown={handleTitleKeyDown}
                         onChange={hanadleTitleChange}
                     ></textarea>
