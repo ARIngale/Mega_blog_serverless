@@ -12,7 +12,6 @@ import aws from "aws-sdk";
 import { Blog } from './Schema/Blog.js';
 import { Notification } from './Schema/Notification.js';
 import { Comment } from './Schema/Comment.js';
-import { populate } from 'dotenv';
 
 const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
 const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
@@ -853,6 +852,44 @@ server.post("/delete-comment", verifyJWT, async (req, res) => {
     }
 });
 
+
+server.post("/user-written-blogs",verifyJWT,(req,res) => {
+    let user_id=req.user;
+    let {page,draft,query,deletedDocCount}=req.body;
+    let maxlimit=5;
+    let skipDocs=(page-1)*maxlimit;
+
+    if(deletedDocCount){
+        skipDocs=deletedDocCount;
+    }
+    Blog.find({author:user_id,draft,title:new RegExp(query,'i')})
+    .skip(skipDocs)
+    .limit(maxlimit)
+    .sort({publishedAt:-1})
+    .select("title banner publishedAt blog_id activity des draft")
+    .then(blogs => {
+        return res.status(200).json({blogs})
+    })
+    .catch (err=> {
+        return res.status(500).json({ error: err.message });
+    }); 
+
+})
+
+
+server.post("/user-written-blogs-count",verifyJWT,(req,res) => {
+    let user_id=req.user;
+    let {draft,query}=req.body;
+
+    Blog.countDocuments({author:user_id,draft,title:new RegExp(query,'i')})
+    .then(count => {
+        console.log(count);
+        return res.status(200).json({totalDocs:count})
+    })
+    .catch(err =>{
+        return res.status(500).json({error:err.message});
+    })
+})
 
 
 
