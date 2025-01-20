@@ -24,13 +24,11 @@ const EditorProfile = () => {
   useEffect(() => {
     if (access_token) {
 
-      // Fetching the profile data
       axios
         .post(import.meta.env.VITE_SERVER_DOMAIN + "/get-profile", {
           username: userAuth.username,
         })
         .then(({ data }) => {
-        // console.log(data)
           const user = data.users[0];
           setProfile(user); // Asynchronous update
           setLoading(false); // Set loading to false

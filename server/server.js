@@ -97,7 +97,6 @@ const formatDatatoSend = (user) => {
 server.get('/get-upload-url', (req,res) => {
     generateUploadURL().then(url => res.status(200).json({uploadURL:url}))
     .catch(err => {
-        console.log(err.message)
         return res.status(500).json({error:err.message})
     })
 })
@@ -209,7 +208,6 @@ server.post("/all-latest-blogs-count",(req,res) => {
         return res.status(200).json({totalDocs:count})
     })
     .catch(err => {
-        console.log(err.message);
         return res.status(500).json({error:err.message})
     })
 });
@@ -280,12 +278,8 @@ server.post('/search-blogs-count', (req, res) => {
     }
 
 
-    // let findQuery = { tags: { $in: tags }, draft: false };
-    // console.log("Find query:", findQuery);
-
     Blog.countDocuments(findQuery)
         .then(count => {
-            // console.log("Count:", count);
             return res.status(200).json({ totalDocs: count });
         })
         .catch(err => {
@@ -609,12 +603,10 @@ server.post("/get-blog-comments",(req,res) => {
         'commentedAt':-1
     })
     .then(comments => {
-        console.log(comments);
         return res.status(200).json(comments)
         
     })
     .catch(err => {
-        console.log(err.message);
         return res.status(500).json({error:err.message})
     })
 })
@@ -670,7 +662,6 @@ server.get("/new-notification", verifyJWT, (req, res) => {
             user: { $ne: user_id }
         })
         .then(result => {
-            console.log("result it is",result);
             res.status(200).json({ new_notification_available:!!result });
             
         })
@@ -772,7 +763,6 @@ const deleteComments = async (_id) => {
     try {
         // Find and delete the comment
         const comment = await Comment.findOneAndDelete({ _id });
-        console.log("1st comment", comment);
 
         if (!comment) {
             throw new Error("Comment not found");
@@ -784,18 +774,15 @@ const deleteComments = async (_id) => {
                 { _id: comment.parent },
                 { $pull: { children: _id } }
             );
-            console.log("Comment deleted from parent");
         }
 
         // Delete related notifications
         await Notification.findOneAndDelete({ comment: _id });
-        console.log("Comment notification deleted");
 
         await Notification.findOneAndUpdate(
             { reply: _id },
             { $unset: { reply: 1 } }
         );
-        console.log("Reply notification unset");
 
         // Remove the comment from the blog's comments and decrement total comments count
         await Blog.findOneAndUpdate(
@@ -811,10 +798,8 @@ const deleteComments = async (_id) => {
             for (const childId of comment.children) {
                 await deleteComments(childId);
             }
-            console.log("Deleted child comments:", comment.children);
         }
     } catch (err) {
-        console.error("Error in deleteComments function:", err.message);
         throw err; // Propagate the error to the caller
     }
 };
@@ -831,11 +816,7 @@ server.post("/delete-comment", verifyJWT, async (req, res) => {
             return res.status(404).json({ error: "Comment not found" });
         }
 
-        console.log("user_id", user_id);
-        console.log("comment.commented_by", comment.commented_by.toString());
-        console.log("comment.blog_author", comment.blog_author.toString());
-
-        // Check if the user is authorized to delete the comment
+    
         if (
             user_id === comment.commented_by.toString() ||
             user_id === comment.blog_author.toString()
@@ -883,7 +864,6 @@ server.post("/user-written-blogs-count",verifyJWT,(req,res) => {
 
     Blog.countDocuments({author:user_id,draft,title:new RegExp(query,'i')})
     .then(count => {
-        console.log(count);
         return res.status(200).json({totalDocs:count})
     })
     .catch(err =>{

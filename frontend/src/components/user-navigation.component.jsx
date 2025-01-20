@@ -17,7 +17,7 @@ const UserNavigationPanel = () => {
     return (
         <AnimationWrapper transition={{duration:0.2}} className="absolute right-0 z-50">
             <div className="bg-white absolute right-0 border border-grey w-60 rounded-xl overflow-hidden duration-200">
-                <Link to="/editor" className="flex gap-2 link md:hidden pl-8 py-4Profile">
+                <Link to="/editor" className="flex gap-2 link md:hidden pl-8 py-4 Profile">
                     <i className="fi fi-rr-file-edit"></i>
                     <p>Write</p>
                 </Link>

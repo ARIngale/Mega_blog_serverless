@@ -41,7 +41,6 @@ const NotificationCard=({data,index,notificationState}) => {
          })
     }
 
-    console.log(replied_on_comment);
 
     return (
         <div className={"p-6 borber-b border-grey border-l-black"+(!seen ? "border-l-2":"")}>

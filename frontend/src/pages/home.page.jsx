@@ -27,7 +27,6 @@ const HomePage = () => {
                     page,
                     counteRoute:"/all-latest-blogs-count"
                 })
-                // console.log(formatedData);
                 setBlogs(formatedData);
             })
             .catch(err => {
@@ -56,7 +55,6 @@ const HomePage = () => {
                 counteRoute:"/search-blogs-count",
                 data_to_send:{tag:pageState}
             })
-            // console.log(formatedData);
             setBlogs(formatedData);
         })
             .catch(err => {
@@ -91,7 +89,7 @@ const HomePage = () => {
 
     return (
         <AnimationWrapper>
-            <section className="h-cover flex justify-center gap-10">
+            <section className="h-cover width-full flex justify-center gap-15">
                 {/* latest blogs */}
                 <div style={{ marginBottom: '32px' }}>
                     <InPageNavigation routes={[pageState, "trending blogs"]} defaultHidden={["trending blogs"]}>

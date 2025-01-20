@@ -38,7 +38,6 @@ const Notifications = () => {
                 });
 
                 setNotifications(formatedData);
-                console.log("Formatted Data: ", formatedData);
             })
             .catch((err) => {
                 console.log(err);
@@ -61,7 +60,7 @@ const Notifications = () => {
     return (
         <div>
             <h1 className="max-md:hidden">Recent Notifications</h1>
-            <div className="my-8 flex gap-6">
+            <div className="my-8 flex gap-4">
                 {filters.map((filtername, i) => (
                     <button
                         key={i}

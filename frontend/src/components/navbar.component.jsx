@@ -2,7 +2,6 @@ import { useContext, useEffect, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import darkLogo from "../imgs/logo-dark.png";
 import lightLogo from "../imgs/logo-light.png";
-
 import { ThemeContext, UserContext } from "../App";
 import UserNavigationPanel from "./user-navigation.component";
 import axios from "axios";
@@ -24,12 +23,11 @@ const Navbar = () => {
   const toggleSearchBox = () => {
     setSearchBoxVisibility((currentVal) => !currentVal);
   };
-  //on click on profile
+  
   const handleUserNavPanel= () => {
     setUserNavPanel((currentVal) => !currentVal);
   };
 
-  //onclick outside the Navelements of User Panel
   const handleBlur = () => {
     setTimeout(() => {
       setUserNavPanel(false);
@@ -62,7 +60,6 @@ const Navbar = () => {
         }
       })
       .then(({data}) => {
-        console.log(data);
         setUserAuth({...userAuth,...data});
       })
       .catch(err => {
@@ -70,7 +67,6 @@ const Navbar = () => {
       })
     }
   },[])
-  console.log(new_notification_available)
 
   return (
     <>
@@ -95,20 +91,27 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-3 md:gap-6 ml-auto">
-          <button
-            className="md:hidden bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center"
+        <button
+            className={`md:hidden w-12 h-12 rounded-full flex items-center justify-center ${
+              theme === "light" ? "bg-gray-100" : "bg-gray-200"
+            }`}
             onClick={toggleSearchBox}
           >
-            <i className="fi fi-rr-search text-xl"></i>
+            <i
+              className={`fi fi-rr-search text-xl ${
+                theme === "light" ? "text-black" : "text-white"
+              }`}
+            ></i>
           </button>
 
-          <Link to="/editor" className="hidden md:flex gap-2 items-center text-gray-700">
-            <i className="fi fi-rr-file-edit"></i>
-            <p>Write</p>
+
+          <Link to="/editor" className=" gap-2 link hidden md:flex pl-8 py-4 Profile">
+              <i className="fi fi-rr-file-edit"></i>
+              <p>Write</p>
           </Link>
 
           <button className="w-12 h-12 rounded-full bg-grey relative hover:bg-black/10" onClick={changeTheme}>
-                  <i className={"fi fi-rr-"+(theme === "light" ?"moon-stars":"sun")+" text-2xl block mt-1"}></i>
+                  <i className={"fi fi-rr-"+(theme === "light" ?"moon-stars":"sun")+" text-2xl"}></i>
             </button>
 
           {access_token ? (

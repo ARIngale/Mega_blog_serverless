@@ -39,7 +39,6 @@ const ManageBlogs=()=>{
                     draft,query
                 }
             })
-            // console.log("draft -> ",draft,formatedData);
             if(draft){
                 setDrafts(formatedData);
             }else{

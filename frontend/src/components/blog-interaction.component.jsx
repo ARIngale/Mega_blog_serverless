@@ -23,7 +23,7 @@ const BlogInteraction =()=>{
                 }
             })
             .then(({data})=>{
-                console.log(data);
+                return toast.success("Liked the blog")
             })
             .catch(err => {
                 console.log(err);

@@ -11,7 +11,7 @@ const AboutUser= ({className,bio,social_links, joinedAt}) => {
     let link = social_links[key];
     let icon = null;
 
-    // Determine the icon based on the key
+    
     switch (key) {
       case "facebook":
         icon = "fi fi-brands-facebook";
@@ -38,8 +38,8 @@ const AboutUser= ({className,bio,social_links, joinedAt}) => {
     
         return link ? (
         <Link to={link} key={key} target="_blank" className="flex items-center gap-2 hover:text-black">
-            <i className={icon}></i> {/* Render the icon */}
-            <span>{key.charAt(0).toUpperCase() + key.slice(1)}</span> {/* Display the capitalized key */}
+            <i className={icon}></i> 
+            <span>{key.charAt(0).toUpperCase() + key.slice(1)}</span> 
         </Link>
         ) : null;
     })
