@@ -5,3 +5,4 @@
 .env
 
 server/requests.rest
+server/.serverless

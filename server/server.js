@@ -1,23 +1,29 @@
 import express, { json } from 'express';
 import mongoose from 'mongoose';
-import 'dotenv/config';
+import dotenv from "dotenv";
+dotenv.config();
 import bcrypt from 'bcrypt';
-import { User } from './Schema/User.js';
 import { nanoid } from 'nanoid';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 import aws from "aws-sdk";
+// import { Blog } from './Schema/Blog.js';
+// import { User } from './Schema/User.js';
+// import { Notification } from './Schema/Notification.js';
+// import { Comment } from './Schema/Comment.js';
+import { User } from './Schema/User.js';
 import { Blog } from './Schema/Blog.js';
 import { Notification } from './Schema/Notification.js';
 import { Comment } from './Schema/Comment.js';
+import serverless from "serverless-http";
+
 
 const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
 const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
 
 const server = express();
-const PORT = 4000;
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
@@ -29,11 +35,21 @@ admin.initializeApp({
 server.use(express.json());
 server.use(cors());
 
+// mongoose.connect(process.env.DB_LOCATION, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//     autoIndex: true,
+// });
+
+
 mongoose.connect(process.env.DB_LOCATION, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
     autoIndex: true,
-});
+})
+.then(() => console.log('MongoDB Connected Successfully'))
+.catch(err => console.error('MongoDB Connection Error:', err));
+
 
 // setting up s3 bucket
 const s3 = new aws.S3({
@@ -873,7 +889,6 @@ server.post("/user-written-blogs-count",verifyJWT,(req,res) => {
 
 
 
-// Start the Server
-server.listen(PORT, () => {
-    console.log(`Listening on port -> ${PORT}`);
-});
+// module.exports.handler = serverless(app);
+export const handler = serverless(server);
+
